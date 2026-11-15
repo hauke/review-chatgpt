@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "repositories": [
+    "openwrt/openwrt"
+  ],
+  "max_prs": 8,
+  "max_comments": 20,
+  "max_comment_chars": 3000,
+  "max_commit_checks": 20,
+  "reference_repositories": [
+    {
+      "url": "https://github.com/gregkh/linux.git",
+      "match_paths": [
+        "target/linux/*/patches-*/*.patch",
+        "target/linux/generic/backport-*/*.patch",
+        "target/linux/generic/pending-*/*.patch",
+        "target/linux/generic/hack-*/*.patch"
+      ],
+      "ref_from": {
+        "file": [
+          "target/linux/generic/kernel-{series}",
+          "include/kernel-{series}"
+        ],
+        "variable": "LINUX_VERSION-{series}",
+        "prefix": "v{series}"
+      },
+      "repositories": [
+        "openwrt/openwrt"
+      ]
+    },
+    {
+      "url": "https://github.com/gregkh/linux.git",
+      "match_paths": [
+        "package/kernel/mac80211/**"
+      ],
+      "ref_from": {
+        "file": "package/kernel/mac80211/Makefile",
+        "variable": [
+          "PKG_SOURCE_VERSION",
+          "PKG_VERSION"
+        ],
+        "prefix": "v"
+      },
+      "repositories": [
+        "openwrt/openwrt"
+      ]
+    },
+    {
+      "url": "https://thekelleys.org.uk/git/dnsmasq.git",
+      "match_paths": [
+        "package/network/services/dnsmasq/**"
+      ],
+      "ref_from": {
+        "file": "package/network/services/dnsmasq/Makefile",
+        "variable": [
+          "PKG_UPSTREAM_VERSION",
+          "PKG_VERSION"
+        ],
+        "prefix": "v"
+      },
+      "repositories": [
+        "openwrt/openwrt"
+      ]
+    },
+    {
+      "url": "https://github.com/u-boot/u-boot.git",
+      "match_paths": [
+        "package/boot/uboot-envtools/**"
+      ],
+      "ref_from": {
+        "file": "package/boot/uboot-envtools/Makefile",
+        "variable": "PKG_VERSION",
+        "prefix": "v"
+      },
+      "repositories": [
+        "openwrt/openwrt"
+      ]
+    }
+  ],
+  "issue_triage": {
+    "enabled": false,
+    "max_issues": 8,
+    "allowed_labels": []
+  }
+}

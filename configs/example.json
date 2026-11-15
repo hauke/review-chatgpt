@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "repositories": [
+    "openwrt/procd"
+  ],
+  "max_prs": 8,
+  "max_comments": 20,
+  "max_comment_chars": 3000,
+  "max_commit_checks": 20,
+  "reference_repositories": [],
+  "issue_triage": {
+    "enabled": false,
+    "max_issues": 8,
+    "allowed_labels": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "reviewer": "chatgpt-work-v1",
+  "repository": "openwrt/procd",
+  "number": 1,
+  "head_sha": "0000000000000000000000000000000000000000",
+  "base_sha": "0000000000000000000000000000000000000000",
+  "status": "complete",
+  "action": "COMMENT",
+  "comments": [],
+  "commit_checks": [],
+  "fixed_threads": []
+}
