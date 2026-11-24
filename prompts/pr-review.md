@@ -60,6 +60,10 @@ histories, conversation comments, and inline comments. Save normalized connector
 described in the setup guide. Pass `--github-snapshot <discovery-github.json>`
 to discovery. Do not invent data or completeness; report missing/truncated tool
 responses. A candidate list can be partial, and remaining work stays unknown.
+For batch discovery, list open PRs by creation time descending
+(`sort=created&direction=desc` on GitHub REST), starting from the newest in each
+allowlisted repository. Preserve each candidate's `created_at` timestamp in
+the snapshot. Fetch more candidates as needed if the newest PRs are skipped.
 
 Skip a PR if Claude has already commented, even if its head has since changed.
 The scripts recognize `claude[bot]`, `claude-code[bot]`, and legacy unmarked output

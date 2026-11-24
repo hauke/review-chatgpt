@@ -13,6 +13,7 @@ from openwrt_ai.common import (
     config_argument,
     emit,
     positive_int,
+    pr_created_at,
     require,
     run_cli,
     snapshot,
@@ -42,21 +43,23 @@ def discover(api, policy, maximum=None, repository=None, number=None):
                     f"/repos/{repo}/pulls",
                     {
                         "state": "open",
-                        "sort": "updated",
-                        "direction": "asc",
+                        "sort": "created",
+                        "direction": "desc",
                     },
                 ):
                     yield repo, pr
         except ReviewError as error:
             raise ReviewError(f"{repo}: {error}") from error
 
-    repositories = (repository,) if repository is not None else policy.repositories
-    # Merge server-sorted streams lazily, without loading every PR or inspecting
-    # unrelated review histories before we can return a one-PR batch.
-    stream = heapq.merge(
-        *(pending(repo) for repo in repositories),
-        key=lambda pair: (pair[1].get("updated_at", ""), pair[0]),
-    )
+    if repository is None:
+        # Merge newest-first streams lazily across repositories.
+        stream = heapq.merge(
+            *(pending(repo) for repo in policy.repositories),
+            key=lambda pair: pr_created_at(pair[1]),
+            reverse=True,
+        )
+    else:
+        stream = pending(repository)
     candidates, skipped, failures = [], [], []
     scan_complete = False
     try:

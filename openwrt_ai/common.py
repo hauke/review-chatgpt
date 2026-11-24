@@ -7,6 +7,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 BOT = "openwrt-ai"
@@ -45,6 +46,20 @@ def repo_name(value):
 def positive_int(value, label):
     require(type(value) is int and value > 0, f"invalid {label}")
     return value
+
+
+def pr_created_at(pr):
+    value = pr.get("created_at") if isinstance(pr, dict) else None
+    message = (
+        "batch PR records require a valid created_at timestamp with a timezone; refresh the listing"
+    )
+    require(isinstance(value, str), message)
+    try:
+        stamp = datetime.fromisoformat(value)
+    except ValueError as error:
+        raise ReviewError(message) from error
+    require(stamp.tzinfo is not None, message)
+    return stamp
 
 
 def commit_sha(value):

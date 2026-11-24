@@ -142,7 +142,7 @@ follows (do not infer missing values):
 | `/repos/OWNER/REPO/pulls/N/commits` | Array with each commit's `sha`, if commit-message findings require membership validation |
 | `/repos/OWNER/REPO/pulls/N/comments` | Complete inline comments with `id`, `body`, `user.login/id`, `pull_request_review_id`, `in_reply_to_id` where present; required for Claude detection |
 | `/repos/OWNER/REPO/issues/N/comments` | Complete top-level conversation comments with numeric `id`, `body`, `user.login/id`, `created_at`, `updated_at`; required for exclusions and updates |
-| `/repos/OWNER/REPO/pulls` | Optional candidate PR array with the PR fields above, for batches; it may be partial |
+| `/repos/OWNER/REPO/pulls` | Candidate PR array for batches with the PR fields above plus `created_at` (timezone required). Start with the newest open PRs. The array may be partial. |
 
 Tool responses use different field names; Work must preserve the actual values
 when mapping them. For example, a review's `author` becomes `user`, `commit.oid`
@@ -345,8 +345,8 @@ python3 -E -s -m openwrt_ai.review.discover \
 Check the exit status and JSON before continuing. A per-PR failure is included
 in `failed` with exit status 1; successfully discovered PRs can still be reviewed
 manually. API/listing failures return a manifest with `failed` and exit status 1,
-then stop further scanning. Pending work is fetched oldest-update-first from
-GitHub and merged across repositories. Discovery stops as soon as the batch is
+then stop further scanning. Discovery checks the most recently opened PRs first
+by `created_at`, across all configured repositories. It stops as soon as the batch is
 full instead of checking every open PR's review history. Review pagination is
 still complete for each inspected PR. Complete submitted ChatGPT reviews or marked
 conversation comments count as checkpoints; unchanged heads are skipped. PRs

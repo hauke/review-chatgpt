@@ -20,6 +20,8 @@ from test_review import (
     api_routes,
     findings,
     policy,
+    pr,
+    review,
     validator,
 )
 
@@ -61,6 +63,49 @@ class ConnectorTests(unittest.TestCase):
         result = discover(self.client(self.data()), policy())
         self.assertFalse(result["scan_complete"])
         self.assertIsNone(result["deferred"])
+
+    def test_candidate_listing_uses_opening_time_and_skips_claude(self):
+        data = self.data()
+        resources = data["resources"]
+        root = f"/repos/{REPOSITORY}"
+        resources[f"{root}/pulls"]["data"].extend(
+            [
+                {
+                    **pr(2),
+                    "created_at": "2026-11-13T12:00:00Z",
+                    "updated_at": "2026-11-13T12:00:00Z",
+                },
+                {**pr(3), "created_at": "2026-11-13T13:00:00Z"},
+            ]
+        )
+        for path in (
+            f"{root}/pulls/2/reviews",
+            f"{root}/pulls/2/comments",
+            f"{root}/issues/2/comments",
+        ):
+            resources[path] = {"complete": True, "data": []}
+        resources[f"{root}/pulls/3/reviews"] = {
+            "complete": True,
+            "data": [review(user={"login": "claude[bot]"})],
+        }
+
+        result = discover(self.client(data), policy(), maximum=1)
+        self.assertEqual([item["number"] for item in result["prs"]], [2])
+        self.assertEqual([item["number"] for item in result["skipped"]], [3])
+        self.assertEqual(result["failed"], [])
+
+    def test_old_capture_requires_creation_time_only_for_batch(self):
+        data = self.data()
+        root = f"/repos/{REPOSITORY}"
+        del data["resources"][f"{root}/pulls"]["data"][0]["created_at"]
+        del data["resources"][f"{root}/pulls/1"]["data"]["created_at"]
+
+        client = self.client(data)
+        batch = discover(client, policy())
+        self.assertEqual(batch["prs"], [])
+        self.assertIn("created_at", batch["failed"][0]["error"])
+        specific = discover(client, policy(), repository=REPOSITORY, number=1)
+        self.assertEqual([item["number"] for item in specific["prs"]], [1])
 
     def test_missing_and_incomplete_resources_fail_closed(self):
         for remove in (True, False):

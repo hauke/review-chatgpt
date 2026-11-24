@@ -8,7 +8,7 @@ import copy
 import re
 from datetime import UTC, datetime
 
-from openwrt_ai.common import BOT, BOT_ID, GitHub, read_json, require
+from openwrt_ai.common import BOT, BOT_ID, GitHub, pr_created_at, read_json, require
 
 RESOURCE = re.compile(
     r"/repos/([^/]+/[^/]+)(?:/pulls(?:/[1-9][0-9]*(?:/(?:reviews|files|commits|comments))?)?|/issues(?:/[1-9][0-9]*(?:/comments)?)?)?\Z"
@@ -70,7 +70,10 @@ class ConnectorSnapshot(GitHub):
     def pages(self, path, parameters=None):
         data = self.get(path)
         require(isinstance(data, list), "connector collection must be an array")
-        if path.endswith(("/pulls", "/issues")):
+        parameters = parameters or {}
+        if path.endswith("/pulls") and parameters.get("sort") == "created":
+            data.sort(key=pr_created_at, reverse=parameters.get("direction", "desc") == "desc")
+        elif path.endswith(("/pulls", "/issues")):
             data.sort(key=lambda pr: pr.get("updated_at", ""))
         yield from data
 
