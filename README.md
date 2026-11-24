@@ -3,12 +3,11 @@
 Standalone tooling for ChatGPT-assisted pull request review across public OpenWrt
 repositories. ChatGPT reads the code and writes structured findings; these Python
 helpers discover PRs, prepare source context, and validate publishing previews.
-They make no model API calls and never post to GitHub.
+They make no model API calls. Posting is available through a separate publisher.
 
 This directory is an independent Git repository. Its original implementation was
 extracted from `actions-shared-workflows` at commit
 `0d788a1918168397d3c3774b9c2fa33baed2a420`. The original workflows are unchanged.
-No GitHub repository, remote, schedule, or live reviewer is configured here.
 
 ## Choose a repository profile
 
@@ -17,6 +16,7 @@ No GitHub repository, remote, schedule, or live reviewer is configured here.
 | `configs/openwrt.json` | `openwrt/openwrt` | Version-matched Linux, mac80211, dnsmasq and uboot-envtools |
 | `configs/procd.json` | `openwrt/procd` | PR repository source |
 | `configs/netifd.json` | `openwrt/netifd` | PR repository source |
+| `configs/firmware-utils.json` | `openwrt/firmware-utils` | PR repository source |
 | `configs/multi-repo.json` | OpenWrt, procd, netifd, ubus, libubox | Firmware mappings apply only to `openwrt/openwrt` |
 | `configs/example.json` | procd example | Starting point for another public repository |
 
@@ -54,8 +54,14 @@ Git fetches public source over HTTPS without that token.
 ChatGPT then examines the prepared context and creates findings in the
 [example format](examples/review-findings.json). The validator rechecks the PR
 and produces a preview; see the setup guide for its identity and snapshot inputs.
-No command publishes a review. PRs with Claude comments are skipped. Existing
-marked ChatGPT comments are extended in the preview with the checked commit SHA.
+PRs with Claude comments are skipped. Existing marked ChatGPT comments are
+extended in the preview with the checked commit SHA.
+
+## Publish a review
+
+Follow the [publishing setup](docs/publishing.md) to run the opt-in publisher
+after preview validation. It revalidates against GitHub as `openwrt-ai` and
+either posts a single comment review or extends the existing marked comment.
 
 ## Future ticket triage
 

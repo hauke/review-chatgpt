@@ -25,6 +25,12 @@ class GitHubError(ReviewError):
     """A transport/API failure: stop discovery instead of repeating failed reads."""
 
 
+class GitHubHTTPError(GitHubError):
+    def __init__(self, message, status):
+        super().__init__(message)
+        self.status = status
+
+
 def require(condition, message):
     if not condition:
         raise ReviewError(message)
@@ -264,16 +270,22 @@ class GitHub:
             return dict(self._identity)
         return self._request(path)
 
-    def _request(self, path):
+    def _request(self, path, *, method="GET", payload=None):
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": REVIEWER,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Authorization": f"Bearer {self._token}",
+        }
+        data = None
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+            data = json.dumps(payload).encode()
         request = urllib.request.Request(
             "https://api.github.com" + path,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "User-Agent": REVIEWER,
-                "X-GitHub-Api-Version": "2022-11-28",
-                "Authorization": f"Bearer {self._token}",
-            },
-            method="GET",
+            data=data,
+            headers=headers,
+            method=method,
         )
         try:
             with self.opener.open(request, timeout=30) as response:
@@ -281,12 +293,13 @@ class GitHub:
         except urllib.error.HTTPError as error:
             reset = error.headers.get("X-RateLimit-Reset", "unknown")
             error.close()
-            raise GitHubError(
-                f"GitHub GET {path}: HTTP {error.code}; rate limit reset (Unix seconds): {reset}"
+            raise GitHubHTTPError(
+                f"GitHub {method} {path}: HTTP {error.code}; rate limit reset (Unix seconds): {reset}",
+                error.code,
             ) from error
         except urllib.error.URLError as error:
             reason = str(error.reason).replace(self._token, "[REDACTED]")
-            raise GitHubError(f"GitHub GET failed: {reason}") from error
+            raise GitHubError(f"GitHub {method} failed: {reason}") from error
 
     def pages(self, path, parameters=None):
         require("?" not in path, "pagination path must not include query parameters")

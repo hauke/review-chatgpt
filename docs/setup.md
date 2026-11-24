@@ -3,8 +3,8 @@
 This is a **dry-run implementation** of the batched reviewer in
 `prompts/pr-review.md`. It discovers public PRs,
 prepares Git worktrees, and validates structured findings into manual publishing
-previews. It makes no model or OpenAI API calls and contains no GitHub publisher, review
-schedule, or automatic reply operation. Existing Claude workflows are unchanged.
+previews. It makes no model or OpenAI API calls. For opt-in GitHub posting, see
+[publishing.md](publishing.md).
 
 ## Requirements and environment
 
@@ -181,13 +181,13 @@ This mode trusts the captured connector evidence, just as the existing identity
 file trusts the recorded tool observation. It cannot cryptographically prove
 who captured JSON or detect a change after capture. Previews explicitly include
 `github_read_source: connector-snapshot` and `live_revalidation: false`, with
-`publishing_enabled: false`. It is for the dry run; a future publisher must perform
-its own live authenticated identity, head/base, diff and thread checks. Do not
-treat repeated reads from one snapshot as independent live GitHub checks.
+`publishing_enabled: false`. The publisher performs its own live authenticated
+identity, head/base and diff checks.
 
 ## Publishing boundary
 
-The scripts enforce their own allowlist, bot-token identity, GET-only access, and validation. They
+The preview scripts enforce their own allowlist, bot-token identity, GET-only
+access, and validation. They
 cannot restrict what the Work model can do through another enabled tool. Prompt
 instructions, identity JSON, a filesystem sandbox, and disconnecting `hauke` do
 not provide a `COMMENT`-only permission boundary for the general GitHub connector.
@@ -196,16 +196,10 @@ Managed Team Tasks have a different service-account/connection model; do not
 assume those controls exist for this personal task. See
 [workspace connections](https://learn.chatgpt.com/docs/enterprise/shared-connections).
 
-**Automatic publishing remains disabled.** A future publisher must have only
-bot credentials, enforce the exact policy and payload itself, and exclude direct
-unrestricted write tools from the reviewer. It must verify the live authenticated
-identity, PR openness, head/base snapshots, and thread eligibility at submission,
-use `COMMENT` with the explicit reviewed commit, and implement per-PR locking
-and reconciliation after timeouts before retrying. Rechecking an SHA cannot
-eliminate a concurrent push; submissions must remain pinned to the analyzed SHA.
-The preview's payload hash identifies the reviewed payload; it is not a signature
-or authorization token. Do not connect an automated publisher to these previews
-without implementing that boundary and separately authorizing publication.
+The [separate publisher](publishing.md) requires its own protected bot
+credential. It rebuilds the payload with live GitHub reads and compares it to
+the preview before posting. The preview hash identifies the payload and does
+not grant permission to post.
 
 ## Trusted policy
 
@@ -455,14 +449,13 @@ detected using `changed_files`; commit-check validation rejects PRs above the
 count, relevance, semantic duplicate findings, and correctness need model/human
 review; size/location validation is not a proof of review quality.
 
-**Stop after inspecting the previews.** No script accepts a publish/enable flag.
-Each preview explicitly says `publishing_enabled: false`. Validation failure
-returns nonzero and emits no preview. Identity evidence is not an authentication
-mechanism, and a preview can become stale before someone submits it.
+The preview run ends after inspection. Each preview says
+`publishing_enabled: false`. Validation failure returns nonzero and emits no
+preview. See [publishing.md](publishing.md) for live revalidation and submission.
 
 ## Completion and retries
 
-A first future/manual authorized `COMMENT` review uses the exact analyzed
+A first `COMMENT` review uses the exact analyzed
 `commit_id`, line-anchored findings, and generated body. Every section contains
 the full visible `Reviewed commit: <SHA>` and a hidden marker of the form
 `<!-- chatgpt-work-v1:complete:<40-character SHA> -->`, including clean reviews.
@@ -476,12 +469,11 @@ unresolved findings from earlier rounds.
 
 Such a preview has `review_preview: null` and a `comment_update_preview` containing
 `comment_kind`, `comment_id`, `reviewed_commit`, the full replacement `body`, and
-`expected_body_sha256` for the old body. A future publisher must check the live
+`expected_body_sha256` for the old body. The publisher checks the live
 body hash, ownership, PR membership and head before updating. If the body changed,
 regenerate the preview rather than overwriting newer content. `comment_kind: issue`
 means a top-level issue comment; `comment_kind: review` means a submitted review
-body. They have different GitHub endpoints and IDs. If the connector cannot edit
-a review body, keep the update as a preview; do not create another review instead.
+body. The publisher uses the GitHub endpoint for the identified kind of comment.
 
 GitHub keeps the original `commit_id` when a review body is edited. Discovery
 reads the latest marked SHA from its appended body when the visible SHA agrees,
@@ -502,11 +494,9 @@ logs in durable trusted storage if you want to reuse analysis manually. Do not
 pretend an unpublished preview or an incomplete review was posted. Once a marked
 review is actually submitted, unchanged heads will be skipped by discovery.
 
-Never automatically retry a write after a timeout: verify whether the marked
-review already exists first. This implementation checks existing completion
-during preview validation but has no cross-run publisher lock and cannot prevent
-two simultaneous users from later submitting the same preview. This is one
-reason automatic publication is not part of this implementation.
+The publisher serializes writes per PR through its persistent state directory.
+After an ambiguous failure it checks for the completion marker before permitting
+another write. See [publishing.md](publishing.md) for recovery.
 
 ## Fork test and future schedules
 
@@ -518,8 +508,8 @@ reason automatic publication is not part of this implementation.
    rules were used. Inspect every proposed inline anchor and suggestion.
 3. Push a fix and repeat. The stale old findings must fail validation. To test
    published-history skipping without posting, use the offline tests below.
-   Live completion/reply tests require separate explicit authorization to post
-   on a disposable test PR; none is granted by following this setup guide.
+   A live test uses an authorized test PR and the
+   [publishing setup](publishing.md).
 4. Test actual task tool/approval behavior before relying on unattended execution.
    Offline tests cannot establish that publishing or scheduling works in Work.
 
@@ -535,9 +525,9 @@ If the UI requires two schedules, use two triggers with identical task instructi
 and prevent overlapping runs at the execution host. Check the saved timezone;
 Berlin local time changes with daylight saving. Start with a one-PR batch and
 inspect the first runs before increasing to eight (or sixteen). Scheduling a
-dry-run task does not enable publishing. Before any future live activation,
-disable the Claude reviewer to avoid two systems using `openwrt-ai` completion
-history. This repository does not disable Claude for you.
+dry-run task produces previews. Before enabling live posting, disable the
+Claude reviewer on the target repository to avoid two systems using
+`openwrt-ai` completion history.
 
 To pause, disable the task in ChatGPT's Scheduled view. Also stop any running
 task; disabling future triggers need not stop an already running invocation.
@@ -547,7 +537,7 @@ Revoking bot authorization is a separate emergency stop for connector access.
 
 Retain stdout JSON, stderr, exit codes, and the Work execution log outside the
 reviewed worktrees. Distinguish skipped, deferred, failed, validated, and actually
-published PRs. This implementation always publishes zero. On failure, repair
+published PRs. On failure, repair
 policy/access or retry discovery; do not edit the expected SHA to force acceptance.
 Retain the temp root while investigating; afterward remove only that exact
 reported temporary directory. Each preparation invocation uses a fresh root and
@@ -569,12 +559,12 @@ Work versus Codex Cloud and Claude Routines:
 | Model billing | Existing ChatGPT subscription allowance | Separate product-specific allowance/configuration |
 | PR contexts | One worktree per PR; separate model contexts must be tested | Claude prompt delegates; no assumption of identical Work orchestration |
 | Source setup | Trusted scripts and explicit runtime/network prerequisites | Existing consumer/routine or Cloud environment setup |
-| Publishing | Preview only; future enforced bot-only publisher required | Existing Claude connector posts; not reused by these scripts |
+| Publishing | Preview by default, opt-in bot-only publisher | Existing Claude connector posts |
 
 Manual configuration still required: trusted policy and script commit, runtime
 and network restrictions, durable output location, bot-only connector access,
 manual fork test, then any separately requested schedule. Live posting also
-requires a separately reviewed publisher/permission boundary and authorization.
+requires the publisher credential and persistent state directory.
 
 ## Offline checks
 

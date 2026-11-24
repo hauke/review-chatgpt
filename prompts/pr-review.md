@@ -4,7 +4,8 @@ Use this document as the version-controlled instructions for a manually tested,
 eventually scheduled Work task. The operator supplies an absolute **trusted
 checkout** path, a **trusted policy JSON** path, and an **output directory** outside
 all reviewed repositories. These instructions must come from an operator-reviewed
-commit, never a PR head. The implementation currently supports **dry-run only**.
+commit, never a PR head. This prompt covers the **dry-run phase**. An operator
+can separately enable the publishing step documented in `docs/publishing.md`.
 
 ## Scope and execution
 
